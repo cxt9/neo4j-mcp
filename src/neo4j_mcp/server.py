@@ -129,10 +129,7 @@ async def get_database_schema(database: Optional[str] = None) -> Dict[str, Any]:
     Returns:
         Dictionary containing schema information including:
         - labels: List of node labels
-        - relationshipTypes: List of relationship types  
-        - propertyKeys: List of property keys
-        - constraints: List of database constraints
-        - indexes: List of database indexes
+        - relationshipTypes: List of relationship types
     """
     try:
         conn = _get_neo4j_connection()
@@ -221,23 +218,11 @@ async def get_schema_resource() -> str:
         formatted_schema = f"""
 Neo4j Database Schema
 =====================
-
 Database: {schema['database']}
-
 Node Labels ({len(schema['labels'])}):
 {chr(10).join(f"  - {label}" for label in sorted(schema['labels']))}
-
 Relationship Types ({len(schema['relationshipTypes'])}):
 {chr(10).join(f"  - {rel_type}" for rel_type in sorted(schema['relationshipTypes']))}
-
-Property Keys ({len(schema['propertyKeys'])}):
-{chr(10).join(f"  - {prop}" for prop in sorted(schema['propertyKeys']))}
-
-Constraints ({len(schema['constraints'])}):
-{chr(10).join(f"  - {constraint['name']}: {constraint['type']}" for constraint in schema['constraints'])}
-
-Indexes ({len(schema['indexes'])}):
-{chr(10).join(f"  - {index['name']}: {index['type']}" for index in schema['indexes'])}
 """
         return formatted_schema.strip()
     except Exception as e:

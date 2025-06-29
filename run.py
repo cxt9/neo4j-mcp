@@ -118,6 +118,16 @@ def docs():
     return 0
 
 
+def test_connection():
+    """Test Neo4j connection with detailed diagnostics."""
+    return run_command("python test_connection.py")
+
+
+def debug_neo4j():
+    """Debug Neo4j driver and basic connection."""
+    return run_command("python debug_neo4j.py")
+
+
 def demo():
     """Run a quick demo."""
     print("🚀 Neo4j MCP Quick Demo")
@@ -176,7 +186,9 @@ def main():
     # Docs
     subparsers.add_parser("docs", help="Generate documentation")
     
-    # Demo
+    # Demo/Testing
+    subparsers.add_parser("debug-neo4j", help="Debug Neo4j driver and connection")
+    subparsers.add_parser("test-connection", help="Test Neo4j connection")
     subparsers.add_parser("demo", help="Run quick demo")
     
     args = parser.parse_args()
@@ -199,6 +211,8 @@ def main():
         "install": install,
         "clean": clean,
         "docs": docs,
+        "debug-neo4j": debug_neo4j,
+        "test-connection": test_connection,
         "demo": demo,
     }
     
