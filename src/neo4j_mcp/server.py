@@ -43,7 +43,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 # Create FastMCP server with lifespan management
 mcp = FastMCP(
     name="Neo4j MCP Server",
-    description="Model Context Protocol server for Neo4j database access",
     lifespan=app_lifespan
 )
 
