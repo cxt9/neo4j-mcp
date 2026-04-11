@@ -1,0 +1,13 @@
+{
+  "name": "neo4j-mcp",
+  "owner": {
+    "name": "Doron Goldberg"
+  },
+  "plugins": [
+    {
+      "name": "neo4j-mcp",
+      "source": "./",
+      "description": "Query and mutate Neo4j graph databases from Claude Code via MCP. Per-project credentials via local .env."
+    }
+  ]
+}
