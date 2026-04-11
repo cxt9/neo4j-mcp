@@ -1,128 +1,179 @@
-# Neo4j MCP - Model Context Protocol for Neo4j
+# Neo4j MCP
 
-A robust Model Context Protocol (MCP) implementation that enables LLMs to interact with Neo4j graph databases using natural language.
+A Model Context Protocol server that lets Claude (and other MCP clients) query and mutate Neo4j graph databases. Ships as both a standalone MCP server and a **Claude Code plugin** you can install once and reuse from any project.
 
-This server uses a stable, synchronous Neo4j driver wrapped for asynchronous use, ensuring reliable connections and compatibility with modern MCP clients.
+Each project supplies its own Neo4j credentials via a local `.env` file, so the same plugin can target different databases depending on which folder Claude Code is opened in.
 
-## 🚀 Features
+---
 
-- **Full Read/Write Access**: Execute both read and write Cypher queries.
-- **Flexible Authentication**: Connect to Neo4j with or without authentication.
-- **Schema Introspection**: Automatically discover database schema (labels, relationship types).
-- **Secure Configuration**: Environment-based configuration using a `.env` file.
-- **LLM Integration**: Ready to use with Cursor, Claude Desktop, and other MCP-compatible tools.
-- **Robust Error Handling**: Clear error messages for connection and query issues.
-- **Parameterized Queries**: Support for safe, parameterized queries to prevent injection.
+## Features
 
-## 📋 Prerequisites
+- One consolidated `cypher_query` tool with explicit `read` / `write` mode.
+- Schema introspection: labels, relationship types, and property keys.
+- Full result serialization — preserves node/relationship `element_id`, labels, types, and Neo4j temporal/spatial values.
+- Result-size guard with truncation flag, so a runaway `MATCH (n)` won't blow up the response.
+- Per-project credentials through `.env` (loaded by `python-dotenv` from the working directory).
+- Works with stdio (Claude Code, Claude Desktop, Cursor) and SSE.
 
-- Python 3.8+
-- A running Neo4j database (local, Docker, or cloud).
-- `pip` for installing packages.
+## Prerequisites
 
-## 🔧 Installation
+- Python 3.10+
+- A reachable Neo4j database (local, Docker, or Aura)
+- `pip` (or `uv`, `pipx`)
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-repo/neo4j-mcp.git
-    cd neo4j-mcp
-    ```
+## Install the Python package
 
-2.  **Install in editable mode:**
-    This is the recommended way to install, as it links the `neo4j-mcp-server` command directly to your source code.
-    ```bash
-    pip install -e .
-    ```
+The plugin shells out to a console script called `neo4j-mcp-server`, so the package needs to be on your PATH first.
 
-## ⚙️ Configuration
-
-Configuration is managed via a `.env` file in the project root.
-
-1.  **Create a `.env` file.**
-2.  **Add your Neo4j connection details.**
-
-### Example 1: Local Neo4j without Authentication
-Create a `.env` file with the following content. Leave `NEO4J_USERNAME` and `NEO4J_PASSWORD` blank.
 ```bash
-# .env file
-NEO4J_HOST=localhost
-NEO4J_PORT=7687
-NEO4J_USERNAME=
-NEO4J_PASSWORD=
-NEO4J_DATABASE=neo4j
+git clone https://github.com/your-repo/neo4j-mcp.git
+cd neo4j-mcp
+pip install -e .
 ```
 
-### Example 2: Local or Cloud Neo4j with Authentication
+Verify it landed:
+
 ```bash
-# .env file
+which neo4j-mcp-server
+neo4j-mcp-server --help
+```
+
+> Tip: if you use `pipx`, `pipx install -e .` keeps the server isolated from your global Python.
+
+## Use it as a Claude Code plugin
+
+The repo ships a plugin manifest at `.claude-plugin/plugin.json`. Once installed at the user level, the `neo4j` MCP server is available in **every** Claude Code session, on any project.
+
+### 1. Install the plugin
+
+From inside Claude Code:
+
+```
+/plugin install /absolute/path/to/neo4j-mcp
+```
+
+That registers the manifest globally. (You can also add it via a marketplace if you publish one — see Claude Code's plugin docs.)
+
+### 2. Drop a `.env` in any project that should talk to Neo4j
+
+The MCP server inherits Claude Code's working directory, so `python-dotenv` picks up whatever `.env` lives in that project's root. Different folders → different databases, no plugin reconfiguration needed.
+
+```bash
+# my-project/.env
 NEO4J_HOST=localhost
 NEO4J_PORT=7687
 NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=your-secret-password
+NEO4J_PASSWORD=your-secret
 NEO4J_DATABASE=neo4j
 ```
 
-### Example 3: Encrypted Connection (Aura)
-For cloud services like Neo4j Aura, use the `neo4j+s` scheme and set `NEO4J_ENCRYPTED` to `true`.
+For Aura / encrypted connections:
+
 ```bash
-# .env file
 NEO4J_HOST=xxx.databases.neo4j.io
 NEO4J_PORT=7687
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=your-aura-password
-NEO4J_DATABASE=neo4j
 NEO4J_URI_SCHEME=neo4j+s
 NEO4J_ENCRYPTED=true
 ```
 
-## 🏃 Quick Start
+For an unauthenticated local instance, leave `NEO4J_USERNAME` and `NEO4J_PASSWORD` blank.
 
-With your `.env` file configured and dependencies installed, you can start the server.
+> **Don't commit `.env`.** Add it to `.gitignore` in every project.
 
-```bash
-# Start the MCP server
-neo4j-mcp-server
-```
-The server will start and listen for connections over stdio. If you see `INFO:neo4j_mcp.server:Starting Neo4j MCP Server (stdio)`, it's working!
+### 3. Use it from Claude Code
 
-You can also start it with an SSE transport for web-based clients:
-```bash
-neo4j-mcp-server --transport sse --port 3000
-```
+Open the project, then ask Claude things like:
 
-## 🔌 LLM Integration (Cursor Example)
+- "What labels and relationship types exist in this graph?"
+- "Find the 10 most-connected `Person` nodes."
+- "Create a `Movie` node titled *Inception* released in 2010."
 
-1.  Make sure the server is installed and your `.env` file is configured.
-2.  In Cursor, open the MCP configuration file (`~/.cursor/mcp.json` or via the `@` symbol > Tools > Settings icon).
-3.  Add the following server configuration. The server uses the `.env` file from its own directory, so you don't need to specify credentials here.
+Claude will call the `cypher_query`, `get_database_schema`, and `test_database_connection` tools as needed.
+
+## Use it without Claude Code
+
+The same package works as a plain MCP server for any MCP-compatible client.
+
+### Claude Desktop / Cursor
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or your Cursor MCP config:
 
 ```json
 {
-  "mcp.servers": {
+  "mcpServers": {
     "neo4j": {
       "command": "neo4j-mcp-server",
-      "transport": "stdio"
+      "args": []
     }
   }
 }
 ```
-4.  Restart Cursor. The `@neo4j` tool should now be available and connected.
 
-## 🛠️ Available Tools
+Set the credentials by either putting a `.env` next to wherever the client launches the process, or by exporting `NEO4J_*` variables in the environment block.
 
--   `read_cypher_query(query, [parameters], [database])`: Execute a read-only query.
--   `write_cypher_query(query, [parameters], [database])`: Execute a write query.
--   `get_database_schema([database])`: Get database labels and relationship types.
--   `test_database_connection()`: Verify the connection and get server info.
--   `run_cypher_query(query, [parameters], [database], [read_only])`: Run a query with explicit read/write mode.
+### SSE transport (web clients)
 
-## 🚨 Troubleshooting
+```bash
+neo4j-mcp-server --transport sse --host 0.0.0.0 --port 3000
+```
 
--   **`AttributeError: type object 'SessionConfig' has no attribute 'AccessMode'`**: Your `neo4j` library version might be incompatible. The project is tested with `neo4j>=5.15.0`.
--   **`ConnectionError: Neo4j authentication failed`**: Check your `NEO4J_USERNAME` and `NEO4J_PASSWORD` in the `.env` file. If your database has no auth, ensure these are blank.
--   **`ConnectionError: Neo4j service unavailable`**: Make sure your Neo4j database is running and accessible at the specified `NEO4J_HOST` and `NEO4J_PORT`.
+### Standalone CLI
+
+A small client is bundled for one-off testing:
+
+```bash
+neo4j-mcp-client --test
+neo4j-mcp-client --schema
+neo4j-mcp-client --query "MATCH (n) RETURN count(n) AS nodes"
+neo4j-mcp-client --write --query "CREATE (p:Person {name: 'Alice'}) RETURN p"
+```
+
+## Configuration reference
+
+All settings are read from environment variables (or a `.env` file in the working directory).
+
+| Variable | Default | Description |
+|---|---|---|
+| `NEO4J_HOST` | `localhost` | Bolt host |
+| `NEO4J_PORT` | `7687` | Bolt port |
+| `NEO4J_HTTP_PORT` | `7474` | Browser/HTTP port (informational) |
+| `NEO4J_USERNAME` | _(empty)_ | Leave blank for unauthenticated databases |
+| `NEO4J_PASSWORD` | _(empty)_ | |
+| `NEO4J_DATABASE` | `neo4j` | Default database |
+| `NEO4J_URI_SCHEME` | `bolt` | One of `bolt`, `bolt+s`, `neo4j`, `neo4j+s` |
+| `NEO4J_ENCRYPTED` | `false` | Set `true` for Aura / TLS |
+| `NEO4J_DEFAULT_RESULT_LIMIT` | `100` | Row cap for read queries when none is supplied |
+| `NEO4J_MAX_CONNECTION_POOL_SIZE` | `100` | Driver pool size |
+| `NEO4J_CONNECTION_TIMEOUT` | `30.0` | Seconds |
+
+## Tools exposed by the MCP server
+
+| Tool | Purpose |
+|---|---|
+| `cypher_query(query, mode="read"\|"write", parameters?, database?, limit?)` | Run any Cypher query. Use `mode="write"` for `CREATE`/`MERGE`/`SET`/`DELETE`, even if you also `RETURN` rows. Returns `{records, record_count, truncated, stats}`. |
+| `get_database_schema(database?)` | Returns labels, relationship types, and property keys. |
+| `test_database_connection()` | Verifies connectivity, returns the server agent string and Bolt protocol version. |
+
+Resources: `neo4j://schema`, `neo4j://connection`. Prompt: `cypher_query_help`.
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest                    # 21 unit tests, no live database needed
+ruff check src/ tests/
+mypy src/neo4j_mcp/
+```
+
+## Troubleshooting
+
+- **`Neo4j authentication failed`** — username/password mismatch. For unauthenticated DBs, leave both blank (don't set them to `neo4j`/`neo4j`).
+- **`Neo4j service unavailable`** — DB is down or `NEO4J_HOST` / `NEO4J_PORT` are wrong. Try `cypher-shell -a bolt://$NEO4J_HOST:$NEO4J_PORT` to confirm.
+- **Plugin can't find `neo4j-mcp-server`** — the console script isn't on the PATH that Claude Code inherits. Install with `pipx` or make sure your shell rc file exports the right `PATH` for GUI apps. On macOS, GUI apps don't read `~/.zshrc`; use `launchctl setenv PATH ...` or install into `/usr/local/bin`.
+- **`truncated: true` on a read** — bump `limit` on the call, or set `NEO4J_DEFAULT_RESULT_LIMIT` higher in `.env`.
 
 ---
 
-Made with ❤️ for the Neo4j and MCP communities
-
+MIT licensed.

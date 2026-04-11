@@ -1,0 +1,14 @@
+{
+  "name": "neo4j-mcp",
+  "version": "0.2.0",
+  "description": "Query and mutate Neo4j graph databases from Claude Code via MCP. Each project supplies its own credentials through a local .env file.",
+  "author": {
+    "name": "Doron Goldberg"
+  },
+  "mcpServers": {
+    "neo4j": {
+      "command": "neo4j-mcp-server",
+      "args": []
+    }
+  }
+}
