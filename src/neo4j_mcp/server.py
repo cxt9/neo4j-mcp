@@ -1,7 +1,5 @@
 """Neo4j MCP server implementation using FastMCP."""
 
-from __future__ import annotations
-
 import logging
 import sys
 from collections.abc import AsyncIterator
